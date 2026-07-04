@@ -28,7 +28,11 @@ class BookingResource extends JsonResource
             'completed_at' => $this->completed_at,
             'notes' => $this->notes,
 
-            'customer' => new UserResource($this->whenLoaded('customer')),
+            'customer' => [
+                'name' => $this->customer_name,
+                'email' => $this->customer_email,
+                'phone' => $this->customer_phone,
+            ],
             'equipment' => new EquipmentResource($this->whenLoaded('equipment')),
             'payments' => PaymentResource::collection($this->whenLoaded('payments')),
             'usage_log' => new UsageLogResource($this->whenLoaded('usageLog')),

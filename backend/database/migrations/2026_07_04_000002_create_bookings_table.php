@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('booking_reference')->unique();   // e.g. "AB-7F3K2Q"
 
-            $table->foreignId('customer_id')->constrained('users')->cascadeOnDelete();
+            $table->string('customer_name');
+            $table->string('customer_email');
+            $table->string('customer_phone')->nullable();
             $table->foreignId('equipment_id')->constrained('equipment')->restrictOnDelete();
 
             $table->date('booking_date');

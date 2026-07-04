@@ -44,7 +44,6 @@ interface CalendarSlot {
   status: 'free' | 'limited' | 'full'
 }
 
-
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -59,6 +58,10 @@ export function BookingPage() {
   
   const [selectedType, setSelectedType] = useState<EquipmentType | null>(null)
   const [assignedEquipment, setAssignedEquipment] = useState<Equipment | null>(null)
+
+  // DOM Refs for smooth step scrolling
+  const calendarSectionRef = useRef<HTMLDivElement>(null)
+  const checkoutSectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const t = searchParams.get('type') as EquipmentType
@@ -165,6 +168,11 @@ export function BookingPage() {
     resetCheck()
     setSelectedType(type)
     setSuccess(null)
+
+    // Smooth Scroll to calendar section (HCI Fitts's/Hick's Law auto-progress)
+    setTimeout(() => {
+      calendarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 120)
   }
 
   async function handleSelectSlot(slotStart: string, slotEnd: string) {
@@ -193,6 +201,11 @@ export function BookingPage() {
       } else {
         setAssignedEquipment(null)
       }
+
+      // Smooth Scroll to checkout/contact section (HCI Fitts's/Hick's Law auto-progress)
+      setTimeout(() => {
+        checkoutSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 120)
     } catch (err) {
       if (requestId !== checkRequestId.current) return
       setError(apiErrorMessage(err))
@@ -234,9 +247,9 @@ export function BookingPage() {
         start_time: start,
         end_time: end,
         waitlist,
-        guest_name: user ? undefined : guestName,
-        guest_email: user ? undefined : guestEmail,
-        guest_phone: user ? undefined : guestPhone || null,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_phone: guestPhone || null,
       })
       setSuccess({ reference: res.data.data.booking_reference, waitlisted: res.data.data.waitlisted })
     } catch (err) {
@@ -294,244 +307,266 @@ export function BookingPage() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
-      {/* Left Column: Equipment Categories */}
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink-950">Book equipment</h1>
-          <p className="mt-1 text-ink-600">Select a category of watersports equipment to view availability.</p>
+    <div className="space-y-8">
+      {/* Visual Stepper to enhance HCI progress visibility (Jakob's Law / Feedback) */}
+      <div className="flex items-center justify-between max-w-xl mx-auto border border-ink-200 bg-white px-4 py-3 rounded-2xl shadow-soft">
+        <div className={`flex items-center gap-2 text-xs font-semibold ${!selectedType ? 'text-lagoon-700 font-bold' : 'text-ink-400'}`}>
+          <span className={`grid h-5 w-5 place-items-center rounded-lg font-bold text-[10px] ${!selectedType ? 'bg-lagoon-500 text-white' : 'bg-lagoon-50 text-lagoon-500'}`}>1</span>
+          <span>Boat</span>
+        </div>
+        <div className="h-px flex-1 bg-ink-200 mx-3" />
+        <div className={`flex items-center gap-2 text-xs font-semibold ${selectedType && !available ? 'text-lagoon-700 font-bold' : 'text-ink-400'}`}>
+          <span className={`grid h-5 w-5 place-items-center rounded-lg font-bold text-[10px] ${selectedType && !available ? 'bg-lagoon-500 text-white' : 'bg-lagoon-50 text-lagoon-500'}`}>2</span>
+          <span>Time</span>
+        </div>
+        <div className="h-px flex-1 bg-ink-200 mx-3" />
+        <div className={`flex items-center gap-2 text-xs font-semibold ${available !== null ? 'text-lagoon-700 font-bold' : 'text-ink-400'}`}>
+          <span className={`grid h-5 w-5 place-items-center rounded-lg font-bold text-[10px] ${available !== null ? 'bg-lagoon-500 text-white' : 'bg-lagoon-50 text-lagoon-500'}`}>3</span>
+          <span>Checkout</span>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
+        {/* Left Column: Equipment Categories & Calendar */}
+        <div className="space-y-8">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold text-ink-950">Book Watercraft</h1>
+            <p className="text-xs text-ink-600">Select a category of watersports equipment to view active slot calendars.</p>
+          </div>
+
+          {loadingFleet ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-36 animate-pulse rounded-2xl bg-lagoon-50" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {uniqueTypes.map((item) => (
+                <motion.button
+                  key={item.type}
+                  onClick={() => selectType(item.type)}
+                  whileTap={{ scale: 0.97 }}
+                  className={`text-left rounded-3xl border p-5 flex flex-col justify-between min-h-[160px] transition-all ${
+                    selectedType === item.type
+                      ? 'border-lagoon-450 bg-lagoon-50/70 shadow-soft font-bold'
+                      : 'border-ink-200/70 bg-white hover:border-lagoon-200 hover:bg-lagoon-50/40'
+                  }`}
+                >
+                  <div>
+                    <div
+                      className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${
+                        selectedType === item.type ? 'bg-lagoon-500 text-white' : 'bg-lagoon-50 text-lagoon-600'
+                      }`}
+                    >
+                      <EquipmentIcon type={item.type} className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold text-ink-950">{item.name}</p>
+                    <p className="mt-1 text-xs text-ink-500 line-clamp-2 leading-relaxed font-normal">{item.desc}</p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-ink-100 pt-3">
+                    <span className="text-sm font-bold text-lagoon-700">RM {parseFloat(item.hourly_rate).toFixed(2)}/hr</span>
+                    <span
+                      className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${
+                        item.count > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {item.count > 0 ? `${item.count} in fleet` : 'Unavailable'}
+                    </span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          )}
+
+          {/* Visual Slot Selector Calendar Card */}
+          {selectedType && (
+            <div ref={calendarSectionRef} className="scroll-mt-24">
+              <Card className="border-lagoon-100 bg-lagoon-50/10">
+                <CardBody className="pt-5 space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-ink-950 text-sm">Select Booking Time</h3>
+                    <p className="text-xxs text-ink-500">Click an hourly time slot. Red slots are fully occupied.</p>
+                  </div>
+
+                  <div className="w-48">
+                    <Input
+                      label="Date"
+                      type="date"
+                      min={todayISO()}
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                    />
+                  </div>
+
+                  {loadingCalendar ? (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="h-20 animate-pulse rounded-2xl bg-lagoon-50" />
+                      ))}
+                    </div>
+                  ) : calendarSlots.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                      {calendarSlots.map((slot) => {
+                        const isSelected = start === slot.start_time && end === slot.end_time
+
+                        let borderClass = 'border-ink-200 hover:border-lagoon-250 bg-white'
+                        let badgeClass = 'bg-ink-100 text-ink-700'
+                        let statusText = `${slot.available_units}/${slot.total_units} left`
+
+                        if (slot.status === 'free') {
+                          badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                        } else if (slot.status === 'limited') {
+                          badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100'
+                        } else {
+                          badgeClass = 'bg-red-50 text-red-700 border border-red-100 font-bold'
+                          statusText = 'Full'
+                        }
+
+                        if (isSelected) {
+                          borderClass = 'border-lagoon-500 bg-lagoon-50/50 shadow-soft'
+                        }
+
+                        return (
+                          <button
+                            key={slot.start_time}
+                            type="button"
+                            onClick={() => handleSelectSlot(slot.start_time, slot.end_time)}
+                            className={`p-3 rounded-2xl border text-left flex flex-col justify-between h-20 transition-all ${borderClass}`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-xs font-semibold text-ink-950">{slot.start_time}–{slot.end_time}</span>
+                              {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-lagoon-500 animate-ripple" />}
+                            </div>
+                            <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 mt-2 w-max self-start ${badgeClass}`}>
+                              {statusText}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-ink-500">Unable to generate timeslots calendar.</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          )}
         </div>
 
-        {loadingFleet ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-36 animate-pulse rounded-2xl bg-lagoon-50" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {uniqueTypes.map((item) => (
-              <motion.button
-                key={item.type}
-                onClick={() => selectType(item.type)}
-                whileTap={{ scale: 0.97 }}
-                className={`text-left rounded-3xl border p-5 flex flex-col justify-between min-h-[160px] transition-all ${
-                  selectedType === item.type
-                    ? 'border-lagoon-400 bg-lagoon-50 shadow-soft'
-                    : 'border-ink-200/70 bg-white hover:border-lagoon-200 hover:bg-lagoon-50/40'
-                }`}
-              >
-                <div>
-                  <div
-                    className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${
-                      selectedType === item.type ? 'bg-lagoon-500 text-white' : 'bg-lagoon-50 text-lagoon-600'
-                    }`}
-                  >
-                    <EquipmentIcon type={item.type} className="h-5 w-5" />
+        {/* Right Column: Checkout & Contact Panel */}
+        <div ref={checkoutSectionRef} className="scroll-mt-24 lg:sticky lg:top-24 lg:self-start">
+          <Card>
+            <CardBody className="space-y-4 pt-5">
+              <h2 className="font-semibold text-ink-950">Your Reservation</h2>
+
+              {!selectedType && <p className="text-xs text-ink-500">Select an equipment category to start your booking.</p>}
+
+              {selectedType && (
+                <>
+                  <div className="flex items-center gap-3 rounded-xl bg-lagoon-50 p-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-lagoon-500 text-white">
+                      <EquipmentIcon type={selectedType} className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink-950">{TYPE_DESCS[selectedType]?.name}</p>
+                      <p className="text-[10px] text-ink-500 font-semibold">
+                        RM {parseFloat(String(fleet.find(i => i.type === selectedType)?.hourly_rate || 0)).toFixed(2)}/hr
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-ink-950">{item.name}</p>
-                  <p className="mt-1 text-xs text-ink-500 line-clamp-2 leading-relaxed">{item.desc}</p>
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t border-ink-100 pt-3">
-                  <span className="text-sm font-bold text-lagoon-700">RM {parseFloat(item.hourly_rate).toFixed(2)}/hr</span>
-                  <span
-                    className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${
-                      item.count > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                    }`}
-                  >
-                    {item.count > 0 ? `${item.count} in fleet` : 'Unavailable'}
-                  </span>
-                </div>
-              </motion.button>
-            ))}
-          </div>
-        )}
 
-        {/* Visual Slot Selector Calendar Card */}
-        {selectedType && (
-          <Card className="border-lagoon-100 bg-lagoon-50/10">
-            <CardBody className="pt-5 space-y-4">
-              <div>
-                <h3 className="font-semibold text-ink-950 text-sm">Select Booking Time</h3>
-                <p className="text-xxs text-ink-500">Click a time slot to reserve. Red slots are fully booked.</p>
-              </div>
+                  <div className="border-t border-ink-100 pt-3 space-y-1">
+                    <p className="text-xxs uppercase tracking-wider font-semibold text-ink-400">Selected Slot</p>
+                    <p className="text-xs font-semibold text-ink-900">
+                      📅 {date} @ ⏰ {start}–{end} ({hours} {hours === 1 ? 'hour' : 'hours'})
+                    </p>
+                  </div>
 
-              <div className="w-48">
-                <Input
-                  label="Date"
-                  type="date"
-                  min={todayISO()}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
+                  {hours > 0 && (
+                    <div className="flex items-center justify-between rounded-xl bg-surface-sunken px-4 py-3">
+                      <span className="text-xs text-ink-600">Estimated cost</span>
+                      <CountUp value={estimatedCost} prefix="RM " decimals={2} className="text-base font-semibold text-lagoon-700" />
+                    </div>
+                  )}
 
-              {loadingCalendar ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className="h-20 animate-pulse rounded-2xl bg-lagoon-50" />
-                  ))}
-                </div>
-              ) : calendarSlots.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                  {calendarSlots.map((slot) => {
-                    const isSelected = start === slot.start_time && end === slot.end_time
+                  {/* Guest Contact Information Form */}
+                  {!user && (
+                    <div className="border-t border-ink-100 pt-4 space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-ink-950 text-xs">Customer Information</h3>
+                        <p className="text-[10px] text-ink-500">Complete checkout details without registering.</p>
+                      </div>
+                      <Input
+                        label="Contact Name"
+                        required
+                        placeholder="e.g. Harris Rahman"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                      />
+                      <Input
+                        label="Email Address"
+                        type="email"
+                        required
+                        placeholder="e.g. harris@gmail.com"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                      />
+                      <Input
+                        label="Phone Number (optional)"
+                        placeholder="e.g. +60133445566"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                      />
+                    </div>
+                  )}
 
-                    let borderClass = 'border-ink-200 hover:border-lagoon-250 bg-white'
-                    let badgeClass = 'bg-ink-100 text-ink-700'
-                    let statusText = `${slot.available_units}/${slot.total_units} left`
+                  {error && <p className="text-xs text-red-650 font-semibold">{error}</p>}
 
-                    if (slot.status === 'free') {
-                      badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                    } else if (slot.status === 'limited') {
-                      badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100'
-                    } else {
-                      badgeClass = 'bg-red-50 text-red-700 border border-red-100 font-bold'
-                      statusText = 'Full'
-                    }
+                  {checking && (
+                    <div className="flex items-center justify-center py-2 text-xs font-medium text-lagoon-600 gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-lagoon-200 border-t-lagoon-600" />
+                      Checking slot...
+                    </div>
+                  )}
 
-                    if (isSelected) {
-                      borderClass = 'border-lagoon-500 bg-lagoon-50/50 shadow-soft'
-                    }
-
-                    return (
-                      <button
-                        key={slot.start_time}
-                        type="button"
-                        onClick={() => handleSelectSlot(slot.start_time, slot.end_time)}
-                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between h-20 transition-all ${borderClass}`}
+                  <AnimatePresence mode="wait">
+                    {available === true && !checking && (
+                      <motion.div
+                        key="available"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-3"
                       >
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-xs font-semibold text-ink-950">{slot.start_time}–{slot.end_time}</span>
-                          {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-lagoon-500 animate-ripple" />}
-                        </div>
-                        <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 mt-2 w-max self-start ${badgeClass}`}>
-                          {statusText}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-ink-500">Unable to generate timeslots calendar.</p>
+                        <Button className="w-full" size="lg" loading={booking} onClick={() => confirmBooking(false)}>
+                          Confirm Booking
+                        </Button>
+                      </motion.div>
+                    )}
+
+                    {available === false && !checking && (
+                      <motion.div
+                        key="unavailable"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-3"
+                      >
+                        <p className="text-xs font-semibold text-amber-700 leading-relaxed bg-amber-50 border border-amber-100 rounded-xl p-3">
+                          ⚠️ This slot is fully booked. Join the waitlist to be queued if a slot opens up.
+                        </p>
+                        <Button variant="secondary" className="w-full" loading={booking} onClick={() => confirmBooking(true)}>
+                          Join Waitlist
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
               )}
             </CardBody>
           </Card>
-        )}
-      </div>
-
-      {/* Right Column: Checkout & Contact Panel */}
-      <div className="lg:sticky lg:top-24 lg:self-start">
-        <Card>
-          <CardBody className="space-y-4 pt-5">
-            <h2 className="font-semibold text-ink-950">Your Reservation</h2>
-
-            {!selectedType && <p className="text-sm text-ink-500">Select an equipment category to start.</p>}
-
-            {selectedType && (
-              <>
-                <div className="flex items-center gap-3 rounded-xl bg-lagoon-50 p-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-lagoon-500 text-white">
-                    <EquipmentIcon type={selectedType} className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-ink-950">{TYPE_DESCS[selectedType]?.name}</p>
-                    <p className="text-xs text-ink-500">
-                      RM {parseFloat(String(fleet.find(i => i.type === selectedType)?.hourly_rate || 0)).toFixed(2)}/hr
-                    </p>
-                  </div>
-                </div>
-
-                <div className="border-t border-ink-100 pt-3 space-y-2">
-                  <p className="text-xxs uppercase tracking-wider font-semibold text-ink-400">Selected Slot</p>
-                  <p className="text-xs font-semibold text-ink-900">
-                    📅 {date} @ ⏰ {start}–{end} ({hours} {hours === 1 ? 'hour' : 'hours'})
-                  </p>
-                </div>
-
-                {hours > 0 && (
-                  <div className="flex items-center justify-between rounded-xl bg-surface-sunken px-4 py-3">
-                    <span className="text-sm text-ink-600">Estimated cost</span>
-                    <CountUp value={estimatedCost} prefix="RM " decimals={2} className="text-lg font-semibold text-lagoon-700" />
-                  </div>
-                )}
-
-                {/* Guest Contact Information Form */}
-                {!user && (
-                  <div className="border-t border-ink-100 pt-4 space-y-3">
-                    <div>
-                      <h3 className="font-semibold text-ink-950 text-xs">Customer Information</h3>
-                      <p className="text-[10px] text-ink-500">Complete checkout details without registering.</p>
-                    </div>
-                    <Input
-                      label="Contact Name"
-                      required
-                      placeholder="e.g. Harris Rahman"
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                    />
-                    <Input
-                      label="Email Address"
-                      type="email"
-                      required
-                      placeholder="e.g. harris@gmail.com"
-                      value={guestEmail}
-                      onChange={(e) => setGuestEmail(e.target.value)}
-                    />
-                    <Input
-                      label="Phone Number (optional)"
-                      placeholder="e.g. +60133445566"
-                      value={guestPhone}
-                      onChange={(e) => setGuestPhone(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                {error && <p className="text-xs text-red-600">{error}</p>}
-
-                {checking && (
-                  <div className="flex items-center justify-center py-2 text-xs font-medium text-lagoon-600 gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-lagoon-200 border-t-lagoon-600" />
-                    Checking slot...
-                  </div>
-                )}
-
-                <AnimatePresence mode="wait">
-                  {available === true && !checking && (
-                    <motion.div
-                      key="available"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-3"
-                    >
-                      <Button className="w-full" size="lg" loading={booking} onClick={() => confirmBooking(false)}>
-                        Confirm Booking
-                      </Button>
-                    </motion.div>
-                  )}
-
-                  {available === false && !checking && (
-                    <motion.div
-                      key="unavailable"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-3"
-                    >
-                      <p className="text-xs font-medium text-amber-700 leading-relaxed">
-                        This slot is fully booked for {TYPE_LABELS[selectedType]}. Join the waitlist to be queued if a slot opens up.
-                      </p>
-                      <Button variant="secondary" className="w-full" loading={booking} onClick={() => confirmBooking(true)}>
-                        Join Waitlist
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
-          </CardBody>
-        </Card>
+        </div>
       </div>
     </div>
   )

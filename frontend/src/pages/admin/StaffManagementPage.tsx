@@ -13,6 +13,9 @@ export function StaffManagementPage() {
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
+  // Editing state
+  const [editingStaff, setEditingStaff] = useState<User | null>(null)
+
   // Form states
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -32,20 +35,35 @@ export function StaffManagementPage() {
     fetchStaff()
   }, [])
 
-  async function handleAddStaff(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setSuccessMsg(null)
     setSubmitting(true)
     try {
-      await api.post('/users/staff', {
-        name,
-        email,
-        phone: phone || null,
-        role,
-        password,
-      })
-      setSuccessMsg(`Successfully hired ${name}!`)
+      if (editingStaff) {
+        // Edit flow (PUT)
+        await api.put(`/users/staff/${editingStaff.id}`, {
+          name,
+          email,
+          phone: phone || null,
+          role,
+          password: password || undefined,
+        })
+        setSuccessMsg(`Successfully updated ${name}!`)
+        setEditingStaff(null)
+      } else {
+        // Create flow (POST)
+        await api.post('/users/staff', {
+          name,
+          email,
+          phone: phone || null,
+          role,
+          password,
+        })
+        setSuccessMsg(`Successfully hired ${name}!`)
+      }
+      
       // Reset form
       setName('')
       setEmail('')
@@ -57,6 +75,24 @@ export function StaffManagementPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function startEdit(s: User) {
+    setEditingStaff(s)
+    setName(s.name)
+    setEmail(s.email)
+    setPhone(s.phone || '')
+    setRole(s.role as 'staff' | 'admin')
+    setPassword('')
+  }
+
+  function cancelEdit() {
+    setEditingStaff(null)
+    setName('')
+    setEmail('')
+    setPhone('')
+    setRole('staff')
+    setPassword('')
   }
 
   async function handleDelete(userId: number, staffName: string) {
@@ -78,7 +114,7 @@ export function StaffManagementPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold text-ink-950">Staff management</h1>
-          <p className="mt-1 text-ink-600">Register new hires or manage access privileges for active operators.</p>
+          <p className="mt-1 text-ink-600">Register new hires, edit user roles, or manage access privileges for active operators.</p>
         </div>
 
         {error && (
@@ -139,12 +175,20 @@ export function StaffManagementPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleDelete(s.id, s.name)}
-                      className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-red-200/50"
-                    >
-                      Delete Account
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startEdit(s)}
+                        className="text-xs font-medium text-lagoon-600 hover:text-lagoon-850 hover:bg-lagoon-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-lagoon-200/50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(s.id, s.name)}
+                        className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-red-200/50"
+                      >
+                        Delete Account
+                      </button>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -153,16 +197,21 @@ export function StaffManagementPage() {
         )}
       </div>
 
-      {/* Right Column: Hire Staff Form */}
+      {/* Right Column: Hire / Edit Staff Form */}
       <div className="lg:sticky lg:top-24 lg:self-start">
         <Card>
           <CardBody className="pt-5 space-y-4">
-            <h2 className="font-semibold text-ink-950">Add New Staff</h2>
+            <h2 className="font-semibold text-ink-950">
+              {editingStaff ? `Edit Operator: ${editingStaff.name}` : 'Add New Staff'}
+            </h2>
             <p className="text-xs text-ink-500">
-              Create a new authenticated account. Standard staff get access to the front desk and fleet tabs; admins get reporting and user management.
+              {editingStaff 
+                ? 'Update access permissions, contact details, or set a new password.'
+                : 'Create a new authenticated account. Standard staff get access to checkins; admins get reporting and user management.'
+              }
             </p>
 
-            <form onSubmit={handleAddStaff} className="space-y-4 pt-2">
+            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
               <Input
                 label="Full name"
                 required
@@ -216,17 +265,29 @@ export function StaffManagementPage() {
               </div>
 
               <Input
-                label="Temporary Password"
+                label={editingStaff ? 'New Password (optional)' : 'Temporary Password'}
                 type="password"
-                required
-                placeholder="Min. 8 characters"
+                required={!editingStaff}
+                placeholder={editingStaff ? 'Leave blank to keep current' : 'Min. 8 characters'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
 
-              <Button type="submit" className="w-full" size="lg" loading={submitting}>
-                Register Account
-              </Button>
+              <div className="flex gap-2">
+                {editingStaff && (
+                  <Button 
+                    type="button" 
+                    variant="secondary" 
+                    className="w-1/3" 
+                    onClick={cancelEdit}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" className="flex-1" size="lg" loading={submitting}>
+                  {editingStaff ? 'Save Changes' : 'Register Account'}
+                </Button>
+              </div>
             </form>
           </CardBody>
         </Card>

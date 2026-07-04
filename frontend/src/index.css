@@ -111,3 +111,20 @@
     @apply outline-none focus-visible:ring-2 focus-visible:ring-aqua-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page;
   }
 }
+
+/* Hide Juicer.io referral/branding elements and prevent clicks */
+.juicer-feed .referral,
+.juicer-feed a.juicer-about,
+.juicer-feed a[href*="juicer.io"],
+.juicer-feed li.referral,
+.juicer-about {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}

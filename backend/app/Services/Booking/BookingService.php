@@ -17,7 +17,7 @@ class BookingService
      * Reserve a slot. Throws a validation error (with alternatives attached)
      * if the slot is taken and the caller didn't opt to waitlist.
      *
-     * @param  array{equipment_id:int,customer_id:int,booking_date:string,start_time:string,end_time:string,channel?:string,notes?:string,waitlist?:bool}  $data
+     * @param  array{equipment_id:int,customer_name:string,customer_email:string,customer_phone?:string,booking_date:string,start_time:string,end_time:string,channel?:string,notes?:string,waitlist?:bool}  $data
      */
     public function create(array $data): Booking
     {
@@ -39,7 +39,9 @@ class BookingService
 
         return Booking::create([
             'booking_reference' => $this->generateReference(),
-            'customer_id' => $data['customer_id'],
+            'customer_name' => $data['customer_name'] ?? null,
+            'customer_email' => $data['customer_email'] ?? null,
+            'customer_phone' => $data['customer_phone'] ?? null,
             'equipment_id' => $equipment->id,
             'booking_date' => $data['booking_date'],
             'start_time' => $data['start_time'],

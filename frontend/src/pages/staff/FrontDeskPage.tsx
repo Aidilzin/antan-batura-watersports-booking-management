@@ -69,6 +69,22 @@ export function FrontDeskPage() {
     lookupReference(ref)
   }
 
+  async function handleCancelBooking() {
+    if (!booking) return
+    if (!window.confirm(`Are you sure you want to cancel booking ${booking.booking_reference}?`)) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.post(`/bookings/${booking.id}/cancel`)
+      setBooking(res.data.data)
+      fetchTodayBookings()
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Filter Today's Bookings into Operational Stages
   const arrivals = todayBookings.filter(b => b.status === 'pending' || b.status === 'confirmed')
   const checkedIn = todayBookings.filter(b => b.status === 'checked_in')
@@ -127,6 +143,15 @@ export function FrontDeskPage() {
                         {booking.booking_reference}
                       </span>
                       <StatusPill status={booking.status} />
+                      {booking.status !== 'completed' && booking.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={handleCancelBooking}
+                          className="text-[10px] font-bold uppercase tracking-wider text-red-650 hover:text-red-800 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded px-2.5 py-1.5 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   </div>
                 </CardBody>
@@ -197,13 +222,16 @@ export function FrontDeskPage() {
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
-                      <div>
+                      <div className="space-y-0.5">
                         <p className="font-semibold text-ink-950">{b.customer?.name}</p>
-                        <p className="text-[10px] text-ink-500 mt-0.5">
-                          {b.start_time} · {b.equipment?.name || 'Watersports unit'}
+                        <p className="text-[10px] text-lagoon-700 font-bold">
+                          ⏰ {b.start_time}–{b.end_time}
+                        </p>
+                        <p className="text-[9px] text-ink-500 font-semibold">
+                          {b.equipment?.name || 'Watersports unit'}
                         </p>
                       </div>
-                      <span className="font-mono text-[10px] text-lagoon-600 bg-white border border-lagoon-200 rounded px-1.5">
+                      <span className="font-mono text-[9px] text-lagoon-600 bg-white border border-lagoon-200 rounded px-1.5">
                         {b.booking_reference}
                       </span>
                     </button>
@@ -234,9 +262,12 @@ export function FrontDeskPage() {
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
-                      <div>
+                      <div className="space-y-0.5">
                         <p className="font-semibold text-ink-950">{b.customer?.name}</p>
-                        <p className="text-[10px] text-ink-600 font-medium mt-0.5">
+                        <p className="text-[10px] text-lagoon-700 font-bold">
+                          ⏰ {b.start_time}–{b.end_time}
+                        </p>
+                        <p className="text-[9px] text-ink-500 font-semibold">
                           {b.equipment?.name || 'Watersports unit'}
                         </p>
                       </div>
@@ -271,9 +302,12 @@ export function FrontDeskPage() {
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
-                      <div>
+                      <div className="space-y-0.5">
                         <p className="font-semibold text-ink-950">{b.customer?.name}</p>
-                        <p className="text-[10px] text-ink-500 mt-0.5">
+                        <p className="text-[10px] text-lagoon-700 font-bold">
+                          ⏰ {b.start_time}–{b.end_time}
+                        </p>
+                        <p className="text-[9px] text-ink-500 font-semibold">
                           Boat: <span className="font-semibold text-ink-800">{b.equipment?.name}</span>
                         </p>
                       </div>

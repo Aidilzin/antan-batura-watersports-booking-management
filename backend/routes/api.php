@@ -21,7 +21,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 // --- Public auth ---
-Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 // --- Public fleet browsing (customers pick equipment before logging in) ---
@@ -30,43 +29,6 @@ Route::get('/equipment/{equipment}', [EquipmentController::class, 'show']);
 Route::post('/availability/check', [AvailabilityController::class, 'check']);
 Route::post('/availability/calendar', [AvailabilityController::class, 'calendar']);
 Route::post('/bookings', [BookingController::class, 'store']);
-Route::get('/social-feed', function () {
-    return response()->json([
-        [
-            'id' => 1,
-            'source' => 'facebook',
-            'author' => 'Antan Batura Watersport',
-            'date' => '2 hours ago',
-            'text' => '☀️ Beautiful weekend morning at Tasik Shah Alam! Perfect weather for kayaking. Come rent a single kayak for just RM10/hr or double for RM20/hr. Open until 7:15 PM today!',
-            'image' => 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800',
-            'likes' => 142,
-            'comments' => 18,
-            'link' => 'https://www.facebook.com/AntanBaturaWatersport'
-        ],
-        [
-            'id' => 2,
-            'source' => 'instagram',
-            'author' => 'antanbaturawatersport',
-            'date' => 'Yesterday',
-            'text' => 'Watch the sunset over the Blue Mosque from our Cruise Boat 🌅. Tickets are RM10 for adults and RM6 for kids. Make sure to arrive early for the 6:30 PM slot!',
-            'image' => 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&q=80&w=800',
-            'likes' => 389,
-            'comments' => 24,
-            'link' => 'https://www.instagram.com/antanbaturawatersport/'
-        ],
-        [
-            'id' => 3,
-            'source' => 'facebook',
-            'author' => 'Antan Batura Watersport',
-            'date' => '3 days ago',
-            'text' => 'Safety first at Antan Batura! 🛟 We provide complimentary, cleaned life jackets for all rentals. Standard safety briefing is given before you enter the water.',
-            'image' => 'https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?auto=format&fit=crop&q=80&w=800',
-            'likes' => 98,
-            'comments' => 5,
-            'link' => 'https://www.facebook.com/AntanBaturaWatersport'
-        ]
-    ]);
-});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
@@ -108,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // --- Staff management ---
         Route::get('/users/staff', [UserController::class, 'indexStaff']);
         Route::post('/users/staff', [UserController::class, 'storeStaff']);
+        Route::put('/users/staff/{user}', [UserController::class, 'updateStaff']);
         Route::delete('/users/staff/{user}', [UserController::class, 'destroyStaff']);
     });
 

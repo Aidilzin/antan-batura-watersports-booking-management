@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { api } from '../../lib/api'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
 import { CountUp } from '../../components/ui/CountUp'
@@ -12,7 +12,6 @@ import {
   CartesianGrid,
   BarChart,
   Bar,
-  Legend,
   Cell,
 } from 'recharts'
 
@@ -28,11 +27,20 @@ const RANGE_PRESETS = [
   { label: '90 days', days: 90 },
 ]
 
-// Categorical order for payment methods — fixed, never re-cycled.
+// Categorical order for payment methods
 const METHOD_COLORS: Record<string, string> = {
   qr: '#0e7490',
   bank_transfer: '#1baf7a',
   cash: '#eda100',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  checked_in: 'Checked In',
+  in_use: 'In Use',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 }
 
 interface SalesReport {
@@ -82,21 +90,43 @@ export function ReportsPage() {
       .finally(() => setLoading(false))
   }, [days])
 
-  const topEquipment = [...usage].sort((a, b) => b.bookings_count - a.bookings_count).slice(0, 8)
+  // Group utilization data by Category Type (Single Kayak, Double Kayak, Canoe, Cruise Boat, Paddle Boat, etc.)
+  const usageByType = useMemo(() => {
+    const groups: Record<string, number> = {}
+    usage.forEach((row) => {
+      let groupName = 'Other'
+      if (row.equipment_name.includes('Cruise')) groupName = 'Cruise Boat'
+      else if (row.equipment_name.includes('Single Kayak')) groupName = 'Single Kayak'
+      else if (row.equipment_name.includes('Kayak #') || row.equipment_name.includes('Double')) groupName = 'Double Kayak'
+      else if (row.equipment_name.includes('Canoe')) groupName = 'Canoe'
+      else if (row.equipment_name.includes('Family')) groupName = 'Family Paddle Boat'
+      else if (row.equipment_name.includes('Paddle')) groupName = 'Paddle Boat'
+
+      groups[groupName] = (groups[groupName] || 0) + row.bookings_count
+    })
+    return Object.entries(groups)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [usage])
+
+  // All active rental units (sorted by utilization volume, showing all 21 units)
+  const sortedAllEquipment = useMemo(() => {
+    return [...usage].sort((a, b) => b.bookings_count - a.bookings_count)
+  }, [usage])
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-ink-950">Reports</h1>
-          <p className="mt-1 text-ink-600">Sales, bookings, and equipment usage over time.</p>
+          <h1 className="text-2xl font-semibold text-ink-950">Analytics & Reports</h1>
+          <p className="mt-1 text-ink-600">Track company sales, booking volumes, and equipment category utilization.</p>
         </div>
         <div className="flex gap-1 rounded-xl bg-lagoon-50 p-1">
           {RANGE_PRESETS.map((p) => (
             <button
               key={p.days}
               onClick={() => setDays(p.days)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                 days === p.days ? 'bg-white text-lagoon-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'
               }`}
             >
@@ -107,19 +137,19 @@ export function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-lagoon-50" />)}
         </div>
       ) : (
         <>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             <StatTile label="Total revenue" value={sales?.total_revenue ?? 0} prefix="RM " decimals={2} />
             <StatTile label="Total bookings" value={bookings?.total_bookings ?? 0} />
-            <StatTile label="Waitlisted" value={bookings?.waitlisted ?? 0} tone="amber" />
+            <StatTile label="Waitlisted Bookings" value={bookings?.waitlisted ?? 0} tone="amber" />
           </div>
 
-          <Card className="mt-6">
-            <CardHeader><h3 className="font-semibold text-ink-950">Revenue over time</h3></CardHeader>
+          <Card>
+            <CardHeader><h3 className="font-semibold text-ink-950 text-sm">Revenue over time</h3></CardHeader>
             <CardBody className="pt-2">
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={sales?.by_day ?? []} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
@@ -142,9 +172,9 @@ export function ReportsPage() {
             </CardBody>
           </Card>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <CardHeader><h3 className="font-semibold text-ink-950">Revenue by payment method</h3></CardHeader>
+              <CardHeader><h3 className="font-semibold text-ink-950 text-sm">Revenue by payment method</h3></CardHeader>
               <CardBody className="pt-2">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={sales?.by_method ?? []} layout="vertical" margin={{ left: 8, right: 24 }}>
@@ -156,8 +186,8 @@ export function ReportsPage() {
                       tick={{ fontSize: 12, fill: '#52514e' }}
                       tickLine={false}
                       axisLine={false}
-                      width={90}
-                      tickFormatter={(v) => v.replace('_', ' ')}
+                      width={95}
+                      tickFormatter={(v) => v.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                     />
                     <Tooltip
                       contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }}
@@ -174,14 +204,24 @@ export function ReportsPage() {
             </Card>
 
             <Card>
-              <CardHeader><h3 className="font-semibold text-ink-950">Bookings by status</h3></CardHeader>
+              <CardHeader><h3 className="font-semibold text-ink-950 text-sm">Bookings by status</h3></CardHeader>
               <CardBody className="pt-2">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={bookings?.by_status ?? []} margin={{ left: 0, right: 8 }}>
                     <CartesianGrid stroke="#e1e0d9" vertical={false} />
-                    <XAxis dataKey="status" tick={{ fontSize: 11, fill: '#898781' }} tickLine={false} axisLine={{ stroke: '#c3c2b7' }} />
+                    <XAxis 
+                      dataKey="status" 
+                      tick={{ fontSize: 11, fill: '#898781' }} 
+                      tickLine={false} 
+                      axisLine={{ stroke: '#c3c2b7' }} 
+                      tickFormatter={(v) => STATUS_LABELS[v] || v}
+                    />
                     <YAxis tick={{ fontSize: 11, fill: '#898781' }} tickLine={false} axisLine={false} width={32} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }}
+                      formatter={(value: any) => [value, 'Bookings']}
+                      labelFormatter={(label) => STATUS_LABELS[label] || label}
+                    />
                     <Bar dataKey="count" fill="#22d3ee" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -189,21 +229,45 @@ export function ReportsPage() {
             </Card>
           </div>
 
-          <Card className="mt-6">
-            <CardHeader><h3 className="font-semibold text-ink-950">Most-used equipment</h3></CardHeader>
-            <CardBody className="pt-2">
-              <ResponsiveContainer width="100%" height={Math.max(220, topEquipment.length * 36)}>
-                <BarChart data={topEquipment} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid stroke="#e1e0d9" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#898781' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="equipment_name" tick={{ fontSize: 12, fill: '#52514e' }} tickLine={false} axisLine={false} width={140} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="bookings_count" name="Bookings" fill="#0e7490" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardBody>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Grouped Category Utilization */}
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold text-ink-950 text-sm">Utilization by Watercraft Category</h3>
+              </CardHeader>
+              <CardBody className="pt-2">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={usageByType} layout="vertical" margin={{ left: 8, right: 24 }}>
+                    <CartesianGrid stroke="#e1e0d9" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: '#898781' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#52514e' }} tickLine={false} axisLine={false} width={120} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }} />
+                    <Bar dataKey="count" name="Total Bookings" fill="#14b8a6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardBody>
+            </Card>
+
+            {/* Individual Rental Units (All 21 units listed sorted) */}
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold text-ink-950 text-sm">Utilization by Individual Rental Unit (All Units)</h3>
+              </CardHeader>
+              <CardBody className="pt-2">
+                <div className="w-full h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+                  <ResponsiveContainer width="100%" height={Math.max(260, sortedAllEquipment.length * 32)}>
+                    <BarChart data={sortedAllEquipment} layout="vertical" margin={{ left: 8, right: 24 }}>
+                      <CartesianGrid stroke="#e1e0d9" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: '#898781' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="equipment_name" tick={{ fontSize: 11, fill: '#52514e' }} tickLine={false} axisLine={false} width={130} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e1e0d9', fontSize: 13 }} />
+                      <Bar dataKey="bookings_count" name="Bookings count" fill="#0e7490" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
         </>
       )}
     </div>

@@ -26,8 +26,6 @@ class StoreBookingRequest extends FormRequest
             'guest_email' => ['nullable', 'email', 'max:255'],
             'guest_phone' => ['nullable', 'string', 'max:50'],
 
-            // Staff-only: book on behalf of / register a walk-in customer.
-            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }
 }

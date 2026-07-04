@@ -59,7 +59,7 @@ class ReturnController extends Controller
         $booking->equipment->update(['status' => EquipmentStatus::Available]);
 
         return new BookingResource(
-            $booking->fresh(['customer', 'equipment', 'usageLog', 'damageReports', 'payments'])
+            $booking->fresh(['equipment', 'usageLog', 'damageReports', 'payments'])
         );
     }
 }

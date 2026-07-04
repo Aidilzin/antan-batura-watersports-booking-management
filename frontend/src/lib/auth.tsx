@@ -6,7 +6,6 @@ interface AuthContextValue {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<User>
-  register: (data: { name: string; email: string; phone?: string; password: string; password_confirmation: string }) => Promise<User>
   logout: () => Promise<void>
 }
 
@@ -18,15 +17,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
-    if (!token) {
+    if (token) {
+      api
+        .get('/me')
+        .then((res) => setUser(res.data.data))
+        .catch(() => localStorage.removeItem(TOKEN_KEY))
+        .finally(() => setLoading(false))
+    } else {
       setLoading(false)
-      return
     }
-    api
-      .get<User>('/me')
-      .then((res) => setUser(res.data))
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
-      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -44,13 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.data.user as User
   }
 
-  async function register(data: { name: string; email: string; phone?: string; password: string; password_confirmation: string }) {
-    const res = await api.post('/register', data)
-    localStorage.setItem(TOKEN_KEY, res.data.token)
-    setUser(res.data.user)
-    return res.data.user as User
-  }
-
   async function logout() {
     try {
       await api.post('/logout')
@@ -63,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

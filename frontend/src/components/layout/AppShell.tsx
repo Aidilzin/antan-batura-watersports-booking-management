@@ -1,35 +1,28 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { useAuth } from '../../lib/auth'
 import clsx from 'clsx'
-
-const NAV_BY_ROLE = {
-  customer: [
-    { to: '/book', label: 'Book equipment' },
-    { to: '/bookings', label: 'My bookings' },
-  ],
-  staff: [
-    { to: '/desk', label: 'Front desk' },
-    { to: '/all-bookings', label: 'All bookings' },
-    { to: '/fleet', label: 'Fleet' },
-  ],
-  admin: [
-    { to: '/desk', label: 'Front desk' },
-    { to: '/all-bookings', label: 'All bookings' },
-    { to: '/fleet', label: 'Fleet' },
-    { to: '/reports', label: 'Reports' },
-    { to: '/staff', label: 'Staff' },
-  ],
-} as const
 
 export function AppShell() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const links = user ? NAV_BY_ROLE[user.role] : [
-    { to: '/', label: 'Home' },
-    { to: '/book', label: 'Book now' },
-  ]
+  const isLandingPage = location.pathname === '/'
+
+  const links = (user && !isLandingPage)
+    ? user.role === 'customer'
+      ? [
+          { to: '/book', label: 'Book Adventure' },
+        ]
+      : [
+          { to: '/desk', label: 'Front desk' },
+          { to: '/bookings', label: 'All bookings' },
+          { to: '/fleet', label: 'Fleet' },
+          user.role === 'admin' ? { to: '/reports', label: 'Reports' } : null,
+          user.role === 'admin' ? { to: '/staff', label: 'Staff' } : null,
+        ].filter(Boolean) as { to: string; label: string }[]
+    : [
+        { to: '/book', label: 'Book Adventure' },
+      ]
 
   async function handleLogout() {
     await logout()
@@ -37,8 +30,13 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-base font-sans text-ink-900 antialiased">
-      <header className="border-b border-ink-150 bg-white/70 backdrop-blur-md sticky top-0 z-40">
+    <div className="flex min-h-screen flex-col bg-surface-base font-sans text-ink-900 antialiased relative">
+      <header className={clsx(
+        "border-b border-ink-150 z-40 transition-colors duration-200",
+        isLandingPage 
+          ? "absolute top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-transparent" 
+          : "sticky top-0 bg-white"
+      )}>
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-6">
             <NavLink to="/" className="flex items-center gap-2 font-bold text-lagoon-700">
@@ -73,7 +71,7 @@ export function AppShell() {
           </div>
 
           <div className="flex items-center gap-3">
-            {user && (
+            {user && !isLandingPage && (
               <>
                 <div className="hidden sm:block text-right leading-tight">
                   <p className="text-sm font-medium text-ink-950">{user.name}</p>
@@ -109,28 +107,26 @@ export function AppShell() {
         </div>
       </header>
 
-      <motion.main
-        key={location.pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.25 }}
+      <main
         className={clsx(
           "flex-1 w-full",
           location.pathname !== '/' && "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"
         )}
       >
         <Outlet />
-      </motion.main>
+      </main>
 
-      <footer className="mt-auto border-t border-ink-150 bg-white/60 backdrop-blur-md py-6 text-center text-xs text-ink-500">
-        <div className="mx-auto w-full max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 Antan Batura Watersports Tasik Shah Alam. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <NavLink to="/" className="hover:text-lagoon-600 transition-colors">Home</NavLink>
-            <NavLink to="/book" className="hover:text-lagoon-600 transition-colors">Book Adventure</NavLink>
+      {location.pathname !== '/' && (
+        <footer className="mt-auto border-t border-ink-150 bg-white/60 backdrop-blur-md py-6 text-center text-xs text-ink-500">
+          <div className="mx-auto w-full max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 Antan Batura Watersports Tasik Shah Alam. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <NavLink to="/" className="hover:text-lagoon-600 transition-colors">Home</NavLink>
+              <NavLink to="/book" className="hover:text-lagoon-600 transition-colors">Book Adventure</NavLink>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   )
 }

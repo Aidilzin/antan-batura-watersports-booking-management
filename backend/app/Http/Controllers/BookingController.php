@@ -19,13 +19,11 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $query = Booking::with(['customer', 'equipment', 'payments', 'usageLog'])
+        $query = Booking::with(['equipment', 'payments', 'usageLog'])
             ->orderByDesc('booking_date')
             ->orderByDesc('start_time');
 
-        if (! $user->isStaffLevel()) {
-            $query->where('customer_id', $user->id);
-        } else {
+        if ($user && $user->isStaffLevel()) {
             if ($request->filled('status')) {
                 $query->where('status', $request->string('status'));
             }
@@ -41,7 +39,7 @@ class BookingController extends Controller
     {
         $this->authorizeAccess($request, $booking);
 
-        $booking->load(['customer', 'equipment', 'payments.recordedBy', 'usageLog', 'damageReports.recordedBy']);
+        $booking->load(['equipment', 'payments.recordedBy', 'usageLog', 'damageReports.recordedBy']);
 
         return new BookingResource($booking);
     }
@@ -50,7 +48,7 @@ class BookingController extends Controller
     public function showByReference(Request $request, string $reference)
     {
         $booking = Booking::where('booking_reference', $reference)
-            ->with(['customer', 'equipment', 'payments', 'usageLog'])
+            ->with(['equipment', 'payments', 'usageLog'])
             ->firstOrFail();
 
         $this->authorizeAccess($request, $booking);
@@ -61,50 +59,27 @@ class BookingController extends Controller
     public function store(StoreBookingRequest $request)
     {
         $user = auth('sanctum')->user();
-        if ($user) {
-            $customerId = $user->isStaffLevel()
-                ? ($request->integer('customer_id') ?: $user->id)
-                : $user->id;
-            $channel = $request->input('channel', $user->isStaffLevel() ? 'walk_in' : 'online');
-        } else {
-            // Guest checkout: find or create a user by guest_email
-            $email = $request->string('guest_email');
-            $name = $request->string('guest_name');
-            $phone = $request->input('guest_phone');
+        $name = $request->string('guest_name');
+        $email = $request->string('guest_email');
+        $phone = $request->input('guest_phone');
 
-            if (!$email || !$name) {
-                throw ValidationException::withMessages([
-                    'guest_email' => ['Contact name and email are required for guest bookings.'],
-                ]);
-            }
-
-            // Find existing user or create a guest profile
-            $guestUser = \App\Models\User::firstOrCreate(
-                ['email' => $email],
-                [
-                    'name' => $name,
-                    'phone' => $phone,
-                    'role' => \App\Enums\UserRole::Customer,
-                    'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
-                ]
-            );
-
-            // Update phone if missing
-            if ($phone && !$guestUser->phone) {
-                $guestUser->update(['phone' => $phone]);
-            }
-
-            $customerId = $guestUser->id;
-            $channel = 'online';
+        if (!$email || !$name) {
+            throw ValidationException::withMessages([
+                'guest_email' => ['Customer name and email are required to create a booking.'],
+            ]);
         }
+
+        $channel = $user?->isStaffLevel() ? 'walk_in' : 'online';
 
         $booking = $this->bookings->create([
             ...$request->validated(),
-            'customer_id' => $customerId,
+            'customer_name' => $name,
+            'customer_email' => $email,
+            'customer_phone' => $phone,
             'channel' => $channel,
         ]);
 
-        $booking->load(['customer', 'equipment']);
+        $booking->load(['equipment']);
 
         return (new BookingResource($booking))
             ->response()
@@ -123,7 +98,7 @@ class BookingController extends Controller
 
         $booking->update(['status' => BookingStatus::Cancelled]);
 
-        return new BookingResource($booking->fresh(['customer', 'equipment']));
+        return new BookingResource($booking->fresh(['equipment']));
     }
 
     public function cancelByReference(string $reference)
@@ -138,14 +113,14 @@ class BookingController extends Controller
 
         $booking->update(['status' => BookingStatus::Cancelled]);
 
-        return new BookingResource($booking->fresh(['customer', 'equipment']));
+        return new BookingResource($booking->fresh(['equipment']));
     }
 
     private function authorizeAccess(Request $request, Booking $booking): void
     {
         $user = $request->user();
 
-        if (! $user->isStaffLevel() && $booking->customer_id !== $user->id) {
+        if ($user && !$user->isStaffLevel()) {
             abort(403, 'You do not have access to this booking.');
         }
     }

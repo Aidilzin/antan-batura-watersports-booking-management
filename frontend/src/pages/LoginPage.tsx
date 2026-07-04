@@ -39,7 +39,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to manage your bookings.">
+    <AuthLayout title="Welcome back" subtitle="Sign in as operator or admin to manage the fleet and front desk.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Email"

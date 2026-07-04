@@ -59,22 +59,25 @@ export function AllBookingsPage() {
       ) : (
         <div className="mt-6 space-y-2.5">
           {bookings.map((booking) => (
-            <Card key={booking.id} className="cursor-pointer" onClick={() => navigate(`/desk?ref=${booking.booking_reference}`)}>
+            <Card key={booking.id} className="cursor-pointer group hover:border-lagoon-250 transition-all shadow-sm hover:shadow-soft" onClick={() => navigate(`/desk?ref=${booking.booking_reference}`)}>
               <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-lagoon-50 text-lagoon-600">
                     {booking.equipment && <EquipmentIcon type={booking.equipment.type} className="h-4.5 w-4.5" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-ink-950">{booking.customer?.name} · {booking.equipment?.name}</p>
+                    <p className="text-sm font-semibold text-ink-950">{booking.customer?.name} · {booking.equipment?.name}</p>
                     <p className="text-xs text-ink-500">
                       {booking.booking_date} · {booking.start_time}–{booking.end_time} · <span className="font-mono">{booking.booking_reference}</span>
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase tracking-wide text-ink-400">{booking.channel.replace('_', ' ')}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xxs uppercase tracking-wide text-ink-400">{booking.channel.replace('_', ' ')}</span>
                   <StatusPill status={booking.waitlisted ? 'pending' : booking.status} />
+                  <span className="text-xs font-semibold text-lagoon-600 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                    Manage →
+                  </span>
                 </div>
               </CardBody>
             </Card>

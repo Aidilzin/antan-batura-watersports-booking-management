@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
-    'booking_reference', 'customer_id', 'equipment_id',
+    'booking_reference', 'customer_name', 'customer_email', 'customer_phone', 'equipment_id',
     'booking_date', 'start_time', 'end_time',
     'status', 'channel', 'waitlisted',
     'safety_briefing_given', 'safety_gear_issued',
@@ -34,11 +34,6 @@ class Booking extends Model
             'handed_over_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
-    }
-
-    public function customer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'customer_id');
     }
 
     public function equipment(): BelongsTo

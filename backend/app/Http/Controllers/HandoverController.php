@@ -51,7 +51,7 @@ class HandoverController extends Controller
 
         return response()->json([
             'message' => 'Equipment handed over. Usage clock started.',
-            'booking' => new BookingResource($booking->fresh(['customer', 'equipment', 'usageLog', 'payments'])),
+            'booking' => new BookingResource($booking->fresh(['equipment', 'usageLog', 'payments'])),
         ]);
     }
 }

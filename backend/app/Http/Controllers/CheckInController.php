@@ -31,6 +31,6 @@ class CheckInController extends Controller
             'checked_in_by' => $request->user()->id,
         ]);
 
-        return new BookingResource($booking->fresh(['customer', 'equipment', 'payments']));
+        return new BookingResource($booking->fresh(['equipment', 'payments']));
     }
 }

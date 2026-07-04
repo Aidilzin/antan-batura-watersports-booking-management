@@ -14,8 +14,8 @@ use App\Models\Equipment;
 use App\Models\Payment;
 use App\Models\UsageLog;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
@@ -29,28 +29,22 @@ class DatabaseSeeder extends Seeder
 
     private function seedUsers(): void
     {
+        // Admin user
         User::create([
             'name' => 'Aisyah (Owner)', 'email' => 'admin@antanbatura.test',
             'phone' => '0123456789', 'role' => UserRole::Admin, 'password' => 'password123',
         ]);
+
+        // Staff users (only staff can checkin bookings)
         User::create([
             'name' => 'Farid (Staff)', 'email' => 'staff@antanbatura.test',
             'phone' => '0123456781', 'role' => UserRole::Staff, 'password' => 'password123',
         ]);
+
         User::create([
             'name' => 'Lina (Staff)', 'email' => 'staff2@antanbatura.test',
             'phone' => '0123456782', 'role' => UserRole::Staff, 'password' => 'password123',
         ]);
-
-        foreach (['Hakim', 'Mei Ling', 'Ravi', 'Nurul', 'Daniel'] as $i => $name) {
-            User::create([
-                'name' => $name,
-                'email' => 'customer'.($i + 1).'@example.test',
-                'phone' => '01987654'.($i + 10),
-                'role' => UserRole::Customer,
-                'password' => 'password123',
-            ]);
-        }
     }
 
     private function seedFleet(): void
@@ -80,17 +74,24 @@ class DatabaseSeeder extends Seeder
     /** A spread of completed bookings over the last 30 days so reports have data. */
     private function seedHistory(): void
     {
-        $customers = User::where('role', UserRole::Customer)->get();
         $staff = User::where('role', UserRole::Staff)->first();
         $equipment = Equipment::all();
         $methods = [PaymentMethod::Qr, PaymentMethod::Cash, PaymentMethod::BankTransfer];
+
+        $customerPool = [
+            ['name' => 'Hakim', 'email' => 'customer1@example.test', 'phone' => '0198765410'],
+            ['name' => 'Mei Ling', 'email' => 'customer2@example.test', 'phone' => '0198765411'],
+            ['name' => 'Ravi', 'email' => 'customer3@example.test', 'phone' => '0198765412'],
+            ['name' => 'Nurul', 'email' => 'customer4@example.test', 'phone' => '0198765413'],
+            ['name' => 'Daniel', 'email' => 'customer5@example.test', 'phone' => '0198765414'],
+        ];
 
         for ($d = 30; $d >= 1; $d--) {
             $bookingsToday = random_int(1, 4);
 
             for ($b = 0; $b < $bookingsToday; $b++) {
                 $item = $equipment->random();
-                $customer = $customers->random();
+                $cust = $customerPool[array_rand($customerPool)];
                 $date = Carbon::today()->subDays($d);
                 $startHour = random_int(9, 16);
                 $hours = random_int(1, 3);
@@ -101,7 +102,9 @@ class DatabaseSeeder extends Seeder
 
                 $booking = Booking::create([
                     'booking_reference' => 'AB-'.Str::upper(Str::random(6)),
-                    'customer_id' => $customer->id,
+                    'customer_name' => $cust['name'],
+                    'customer_email' => $cust['email'],
+                    'customer_phone' => $cust['phone'],
                     'equipment_id' => $item->id,
                     'booking_date' => $date->toDateString(),
                     'start_time' => $start->format('H:i:s'),

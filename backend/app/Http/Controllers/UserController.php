@@ -46,6 +46,34 @@ class UserController extends Controller
         ], 201);
     }
 
+    /** Update an existing staff member. */
+    public function updateStaff(Request $request, User $user): JsonResponse
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'role' => ['required', 'string', 'in:staff,admin'],
+            'password' => ['nullable', 'string', 'min:8'],
+        ]);
+
+        $user->name = $request->string('name');
+        $user->email = $request->string('email');
+        $user->phone = $request->input('phone');
+        $user->role = $request->string('role') === 'admin' ? UserRole::Admin : UserRole::Staff;
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->string('password'));
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Staff member updated successfully.',
+            'user' => $user,
+        ]);
+    }
+
     /** Delete a staff member. */
     public function destroyStaff(User $user): JsonResponse
     {

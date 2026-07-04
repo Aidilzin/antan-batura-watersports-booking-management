@@ -33,7 +33,7 @@ function App() {
               <Route element={<ProtectedRoute roles={['staff', 'admin']} />}>
                 <Route path="/desk" element={<FrontDeskPage />} />
                 <Route path="/fleet" element={<FleetPage />} />
-                <Route path="/all-bookings" element={<AllBookingsPage />} />
+                <Route path="/bookings" element={<AllBookingsPage />} />
               </Route>
 
               {/* Admin actions */}
