@@ -1,32 +1,8 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
 import { EquipmentIcon } from '../components/EquipmentIcon'
-
-interface SocialPost {
-  id: number
-  source: 'facebook' | 'instagram'
-  author: string
-  date: string
-  text: string
-  image: string
-  likes: number
-  comments: number
-  link: string
-}
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [feed, setFeed] = useState<SocialPost[]>([])
-  const [loadingFeed, setLoadingFeed] = useState(true)
-
-  useEffect(() => {
-    api
-      .get('/social-feed')
-      .then((res) => setFeed(res.data))
-      .catch((err) => console.error('Failed to load social feed:', err))
-      .finally(() => setLoadingFeed(false))
-  }, [])
 
   const activities = [
     {
