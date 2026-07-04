@@ -1,4 +1,4 @@
-# Antan Batura — Laravel backend runtime (dev)
+# Antan Batura — Laravel backend runtime (production)
 # PHP 8.4 CLI with the extensions Laravel 13 + MySQL need.
 FROM php:8.4-cli
 
@@ -13,7 +13,12 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# The source is bind-mounted via docker-compose, so we don't COPY it here.
+# 🚀 CRUCIAL FOR PRODUCTION/RENDER: Copy the actual source files into the container
+COPY . /app
+
+# Run composer installation for production optimization
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
 # `php artisan serve` binds to 0.0.0.0 so the host can reach it.
 EXPOSE 8000
-CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=8000"]
+CMD ["sh", "-c", "php /app/artisan serve --host=0.0.0.0 --port=8000"]
