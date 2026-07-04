@@ -21,4 +21,3 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # `php artisan serve` binds to 0.0.0.0 so the host can reach it.
 EXPOSE 8000
-CMD ["sh", "-c", "php /app/artisan serve --host=0.0.0.0 --port=8000"]

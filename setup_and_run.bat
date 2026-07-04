@@ -1,5 +1,5 @@
 @echo off
-title Antan Batura Setup & Launch
+title Antan Batura Setup ^& Launch
 echo ===================================================
 echo   Setting up Antan Batura Booking Management System
 echo ===================================================
@@ -25,7 +25,7 @@ echo Checking MySQL database connection...
 
 :: 3. Install composer dependencies if vendor is missing
 if not exist "backend\vendor" (
-    echo Installing backend dependencies (this may take a few minutes)...
+    echo Installing backend dependencies [this may take a few minutes]...
     cd backend
     call composer install
     if errorlevel 1 (
