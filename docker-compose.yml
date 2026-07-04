@@ -1,0 +1,50 @@
+# Antan Batura Watersports — local dev stack
+# Brings up MySQL 8 + the Laravel API. The React frontend runs on the host
+# (`cd frontend && npm run dev`) and talks to the API at http://localhost:8000.
+#
+#   docker compose up -d        # start MySQL + API
+#   docker compose logs -f api  # tail API logs
+#   docker compose down         # stop
+services:
+  db:
+    image: mysql:8.0
+    container_name: antan_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: antan_batura
+      MYSQL_USER: antan
+      MYSQL_PASSWORD: antan_secret
+      MYSQL_ROOT_PASSWORD: root_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    container_name: antan_api
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Overrides for talking to the db service over the compose network.
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: antan_batura
+      DB_USERNAME: antan
+      DB_PASSWORD: antan_secret
+
+volumes:
+  db_data:
