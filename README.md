@@ -6,7 +6,7 @@ A premium, modern web application designed for Tasik Shah Alam Lake Gardens to s
 
 ## 🚀 One-Click Setup & Launch (For Groupmates)
 
-If you have **no technical skills**, follow these simple steps to download and run the project locally.
+Even with **no technical skills**, you can follow these simple steps to download and run the project locally.
 
 ### 📋 Prerequisites
 Before launching, make sure you have installed:
