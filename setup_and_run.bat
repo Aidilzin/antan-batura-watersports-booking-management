@@ -26,7 +26,13 @@ echo Checking MySQL database connection...
 :: 3. Install composer dependencies if vendor is missing
 if not exist "backend\vendor" (
     echo Installing backend dependencies (this may take a few minutes)...
-    cd backend && call composer install && cd ..
+    cd backend
+    call composer install
+    if errorlevel 1 (
+        echo WARNING: Standard composer install failed. Retrying with platform requirements ignored...
+        call composer install --ignore-platform-reqs
+    )
+    cd ..
 )
 
 :: 4. Run migrations and database seeds

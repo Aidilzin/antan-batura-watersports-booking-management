@@ -19,22 +19,17 @@ Before launching, make sure you have installed:
 
 1. Open **Laragon** and click **Start All** (this starts the Apache and MySQL servers).
 2. Double-click the **`setup_and_run.bat`** script at the root directory of this project.
-3. The script will automatically:
-   * Setup your `.env` configuration keys.
-   * Connect to MySQL and create the database (`antan_batura`) automatically.
-   * Install all backend PHP packages (`composer install`).
-   * Migrate the database tables and populate it with initial mock seeds.
-   * Install all frontend React packages (`npm install`).
-   * Launch both the PHP backend and React frontend development servers.
-   * Open your web browser to the customer landing page at **`http://localhost:5173`**.
+3. The script will automatically configure your database, install dependencies, and launch:
+   * **Customer Landing Page:** Opens automatically at **`http://localhost:5173`**.
+   * **Staff/Admin Login Page:** Manually navigate to **`http://localhost:5173/login`** in your browser.
 
-*Keep the two command line windows open while using the website.*
+*Keep the two terminal windows open while using the website.*
 
 ---
 
 ## 🔑 Default Login Credentials
 
-Use the following accounts to access staff and admin capabilities:
+Access the Login Page at **`http://localhost:5173/login`** and use the following:
 
 ### 👤 Administrator Account
 * **Email:** `admin@antanbatura.com`
@@ -45,6 +40,37 @@ Use the following accounts to access staff and admin capabilities:
 * **Email:** `staff@antanbatura.com`
 * **Password:** `password`
 * *Provides access to: Front Desk Operations, All Bookings list, and Fleet Inventory status check.*
+
+---
+
+## 🗄️ How to View the Database & Tables
+
+To inspect the database tables (e.g. `bookings`, `equipment`, `users`, `payments`) and view all data entries:
+
+1. Open **Laragon**.
+2. Click the **Database** button on Laragon's bottom dashboard.
+3. This opens **HeidiSQL** (the database viewer tool included inside Laragon).
+4. Click **Open** on the connection settings popup (defaults to Session: MySQL on host `127.0.0.1`, user `root`, no password).
+5. In the left-hand directory list, click on the **`antan_batura`** database.
+6. Click on any table (e.g., `bookings`) and switch to the **Data** tab in the top-right menu to view all entries and records!
+
+---
+
+## 🛠️ Troubleshooting Setup Issues
+
+### What if `composer install` fails?
+If the setup script outputs a warning or error during Composer packages installation:
+* **Option A (Automatic Fallback):** The setup script is designed to automatically try running `composer install --ignore-platform-reqs` if a standard install fails. If it successfully finishes after the warning, you can ignore the error.
+* **Option B (Enable PHP Extensions in Laragon):** If it still fails, it means your PHP cli has disabled extension modules. You can enable them easily:
+  1. Right-click anywhere in the **Laragon** dashboard.
+  2. Hover over **PHP** ➔ **Extensions**.
+  3. Ensure the following extensions have checkmarks next to them:
+     * `openssl`
+     * `pdo_mysql`
+     * `mbstring`
+     * `curl`
+     * `zip`
+  4. Run `setup_and_run.bat` again.
 
 ---
 
