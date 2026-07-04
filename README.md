@@ -32,13 +32,13 @@ Before launching, make sure you have installed:
 Access the Login Page at **`http://localhost:5173/login`** and use the following:
 
 ### 👤 Administrator Account
-* **Email:** `admin@antanbatura.com`
-* **Password:** `password`
+* **Email:** `admin@antanbatura.test`
+* **Password:** `password123`
 * *Provides access to: Front Desk Operations, All Bookings, Fleet Inventory CRUD, and Business Utilization Reports.*
 
 ### 👤 Staff / Operator Account
-* **Email:** `staff@antanbatura.com`
-* **Password:** `password`
+* **Email:** `staff@antanbatura.test`
+* **Password:** `password123`
 * *Provides access to: Front Desk Operations, All Bookings list, and Fleet Inventory status check.*
 
 ---
