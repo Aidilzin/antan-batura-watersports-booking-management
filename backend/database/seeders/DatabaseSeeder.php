@@ -51,12 +51,12 @@ class DatabaseSeeder extends Seeder
     {
         // [type, count, hourly_rate]
         $fleet = [
-            [EquipmentType::CruiseBoat, 2, 120.00],
-            [EquipmentType::KayakSingle, 6, 25.00],
-            [EquipmentType::KayakDouble, 4, 40.00],
-            [EquipmentType::Canoe, 3, 35.00],
+            [EquipmentType::CruiseBoat, 2, 10.00],
+            [EquipmentType::KayakSingle, 6, 10.00],
+            [EquipmentType::KayakDouble, 4, 20.00],
+            [EquipmentType::Canoe, 3, 15.00],
             [EquipmentType::PaddleBoat, 4, 30.00],
-            [EquipmentType::PaddleBoatFamily, 2, 55.00],
+            [EquipmentType::PaddleBoatFamily, 2, 50.00],
         ];
 
         foreach ($fleet as [$type, $count, $rate]) {

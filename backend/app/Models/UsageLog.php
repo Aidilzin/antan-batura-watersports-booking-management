@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'booking_id', 'actual_start_time', 'actual_end_time',
+    'booking_id', 'booking_item_id', 'actual_start_time', 'actual_end_time',
     'exceeded_minutes', 'extra_charge_amount', 'condition_on_return',
 ])]
 class UsageLog extends Model
@@ -28,5 +28,10 @@ class UsageLog extends Model
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function bookingItem(): BelongsTo
+    {
+        return $this->belongsTo(BookingItem::class);
     }
 }

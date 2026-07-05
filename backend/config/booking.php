@@ -14,4 +14,7 @@ return [
 
     // Booking statuses that occupy a time slot (block new overlapping bookings).
     'blocking_statuses' => ['pending', 'confirmed', 'checked_in', 'in_use'],
+
+    // Limit self-service cancellations close to start time (hours)
+    'cancellation_cutoff_hours' => (int) env('BOOKING_CANCELLATION_CUTOFF_HOURS', 2),
 ];

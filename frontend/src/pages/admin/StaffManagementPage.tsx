@@ -108,6 +108,20 @@ export function StaffManagementPage() {
     }
   }
 
+  async function handlePromoteDemote(userId: number, staffName: string, currentRole: string) {
+    const actionName = currentRole === 'admin' ? 'demote' : 'promote'
+    if (!window.confirm(`Are you sure you want to ${actionName} ${staffName}?`)) return
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      const res = await api.post(`/users/staff/${userId}/promote`)
+      setSuccessMsg(res.data.message)
+      fetchStaff()
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    }
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_380px] max-w-6xl mx-auto">
       {/* Left Column: Staff Directory */}
@@ -153,11 +167,11 @@ export function StaffManagementPage() {
                     className="flex items-center justify-between p-4 rounded-2xl border border-ink-200 bg-white shadow-soft"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-lagoon-50 text-lagoon-600 font-semibold text-sm">
-                        {s.name.slice(0, 2).toUpperCase()}
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl font-semibold text-sm ${s.id === 1 ? 'bg-amber-50 text-amber-600' : 'bg-lagoon-50 text-lagoon-600'}`}>
+                        {s.id === 1 ? '👑' : s.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-ink-950">{s.name}</p>
                           <span
                             className={`text-[9px] font-bold rounded px-1.5 py-0.5 uppercase tracking-wide ${
@@ -168,6 +182,11 @@ export function StaffManagementPage() {
                           >
                             {s.role}
                           </span>
+                          {s.id === 1 && (
+                            <span className="text-[9px] font-bold rounded px-1.5 py-0.5 uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200">
+                              Owner · Protected
+                            </span>
+                          )}
                         </div>
                         <p className="text-xxs text-ink-500 mt-0.5">
                           {s.email} {s.phone ? `· ${s.phone}` : ''}
@@ -176,18 +195,28 @@ export function StaffManagementPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {s.id !== 1 && (
+                        <button
+                          onClick={() => handlePromoteDemote(s.id, s.name, s.role)}
+                          className="text-xs font-medium text-purple-600 hover:text-purple-850 hover:bg-purple-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-purple-200/50"
+                        >
+                          {s.role === 'admin' ? 'Make Staff' : 'Make Admin'}
+                        </button>
+                      )}
                       <button
                         onClick={() => startEdit(s)}
                         className="text-xs font-medium text-lagoon-600 hover:text-lagoon-850 hover:bg-lagoon-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-lagoon-200/50"
                       >
                         Edit
                       </button>
-                      <button
-                        onClick={() => handleDelete(s.id, s.name)}
-                        className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-red-200/50"
-                      >
-                        Delete Account
-                      </button>
+                      {s.id !== 1 && (
+                        <button
+                          onClick={() => handleDelete(s.id, s.name)}
+                          className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg px-2.5 py-1.5 transition-colors border border-transparent hover:border-red-200/50"
+                        >
+                          Delete Account
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -241,23 +270,25 @@ export function StaffManagementPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    disabled={editingStaff?.id === 1}
                     onClick={() => setRole('staff')}
                     className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
                       role === 'staff'
                         ? 'border-lagoon-500 bg-lagoon-50 text-lagoon-700'
                         : 'border-ink-200 bg-white text-ink-600 hover:bg-surface-sunken'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     Staff
                   </button>
                   <button
                     type="button"
+                    disabled={editingStaff?.id === 1}
                     onClick={() => setRole('admin')}
                     className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
                       role === 'admin'
                         ? 'border-lagoon-500 bg-lagoon-50 text-lagoon-700'
                         : 'border-ink-200 bg-white text-ink-600 hover:bg-surface-sunken'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     Admin
                   </button>

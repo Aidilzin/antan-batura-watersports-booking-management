@@ -73,6 +73,40 @@ export interface DamageReport {
   recorded_at: string | null
 }
 
+export interface BookingItemUnit {
+  id: number
+  booking_item_id: number
+  equipment_unit_id: number
+  assigned_at: string
+  equipment_unit?: Equipment
+}
+
+export interface BookingItem {
+  id: number
+  booking_id: number
+  equipment_type: EquipmentType
+  quantity: number
+  display_order: number
+  booking_date: string
+  start_time: string
+  end_time: string
+  rate_snapshot: number
+  item_status: string
+  cancellation_type: string | null
+  safety_briefing_given: boolean
+  safety_gear_issued: boolean
+  checked_in_at: string | null
+  handed_over_at: string | null
+  completed_at: string | null
+  notes: string | null
+  adult_count?: number
+  child_count?: number
+  assigned_units?: BookingItemUnit[]
+  usage_log?: UsageLog
+  damage_reports?: DamageReport[]
+}
+
+
 export interface Booking {
   id: number
   booking_reference: string
@@ -88,11 +122,19 @@ export interface Booking {
   handed_over_at: string | null
   completed_at: string | null
   notes: string | null
-  customer?: User
+  customer?: {
+    name: string
+    email: string
+    phone: string | null
+  }
   equipment?: Equipment
   payments?: Payment[]
   usage_log?: UsageLog
   damage_reports?: DamageReport[]
+  items?: BookingItem[]
+  total_amount?: number
+  payment_status?: string
+  cancellation_type?: string | null
   created_at: string
 }
 

@@ -57,6 +57,10 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
+        if ($user->id === 1 && $request->string('role') !== 'admin') {
+            return response()->json(['message' => 'The super admin account must remain an admin.'], 400);
+        }
+
         $user->name = $request->string('name');
         $user->email = $request->string('email');
         $user->phone = $request->input('phone');
@@ -77,6 +81,11 @@ class UserController extends Controller
     /** Delete a staff member. */
     public function destroyStaff(User $user): JsonResponse
     {
+        // Prevent deleting the super admin (owner)
+        if ($user->id === 1) {
+            return response()->json(['message' => 'The super admin account cannot be deleted.'], 400);
+        }
+
         // Prevent deleting oneself
         if (auth()->id() === $user->id) {
             return response()->json(['message' => 'You cannot delete your own admin account.'], 400);
@@ -85,5 +94,35 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json(['message' => 'Staff account deleted.']);
+    }
+
+    /**
+     * Toggle a staff user's role between staff and admin.
+     * An admin cannot demote themselves.
+     */
+    public function promoteStaff(Request $request, User $user): JsonResponse
+    {
+        if (!in_array($user->role, [UserRole::Staff, UserRole::Admin], true)) {
+            return response()->json(['message' => 'Only staff or admin users can be promoted/demoted.'], 422);
+        }
+
+        // Prevent demoting/modifying the super admin (owner)
+        if ($user->id === 1) {
+            return response()->json(['message' => 'The super admin account cannot be demoted.'], 400);
+        }
+
+        if (auth()->id() === $user->id) {
+            return response()->json(['message' => 'You cannot change your own role.'], 400);
+        }
+
+        $newRole = $user->role === UserRole::Admin ? UserRole::Staff : UserRole::Admin;
+        $user->update(['role' => $newRole]);
+
+        $action = $newRole === UserRole::Admin ? 'promoted to admin' : 'demoted to staff';
+
+        return response()->json([
+            'message' => "User {$user->name} has been {$action}.",
+            'user'    => $user->fresh(),
+        ]);
     }
 }

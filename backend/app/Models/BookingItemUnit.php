@@ -8,24 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'booking_id', 'booking_item_id', 'description', 'deposit_charged',
-    'recorded_by', 'recorded_at',
+    'booking_item_id', 'equipment_unit_id', 'assigned_at',
 ])]
-class DamageReport extends Model
+class BookingItemUnit extends Model
 {
     use HasFactory;
 
     protected function casts(): array
     {
         return [
-            'deposit_charged' => 'decimal:2',
-            'recorded_at' => 'datetime',
+            'assigned_at' => 'datetime',
         ];
-    }
-
-    public function booking(): BelongsTo
-    {
-        return $this->belongsTo(Booking::class);
     }
 
     public function bookingItem(): BelongsTo
@@ -33,8 +26,8 @@ class DamageReport extends Model
         return $this->belongsTo(BookingItem::class);
     }
 
-    public function recordedBy(): BelongsTo
+    public function equipmentUnit(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'recorded_by');
+        return $this->belongsTo(Equipment::class, 'equipment_unit_id');
     }
 }

@@ -16,6 +16,8 @@ class CheckInRequest extends FormRequest
         return [
             'safety_briefing_given' => ['required', 'boolean'],
             'safety_gear_issued' => ['required', 'boolean'],
+            'unit_ids' => ['nullable', 'array'],
+            'unit_ids.*' => ['integer', 'exists:equipment,id'],
         ];
     }
 }

@@ -3,18 +3,55 @@
 namespace App\Services\Booking;
 
 use App\Enums\EquipmentStatus;
-use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\Equipment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Answers "is this equipment free for this slot?" and, when it isn't,
- * suggests alternatives (other equipment of the same type, or other free
- * times on the same equipment) so the customer can rebook or waitlist.
+ * Answers "is this equipment type free for this slot?" based on fleet capacity.
  */
 class AvailabilityService
 {
+    /** Check remaining capacity for a given equipment type and slot. */
+    public function getAvailableCapacity(
+        string $type,
+        string $date,
+        string $start,
+        string $end,
+        ?int $ignoreBookingId = null,
+        ?array $ignoreItemIds = null
+    ): int {
+        // Count total units of this type in fleet excluding maintenance (for today)
+        $isToday = Carbon::parse($date)->isToday();
+        
+        $totalUnitsQuery = Equipment::where('type', $type);
+        if ($isToday) {
+            $totalUnitsQuery->where('status', '!=', EquipmentStatus::Maintenance->value);
+        }
+        $totalUnits = $totalUnitsQuery->count();
+
+        // Sum quantity of overlapping BookingItems
+        $query = BookingItem::query()
+            ->where('equipment_type', $type)
+            ->whereDate('booking_date', $date)
+            ->whereNotIn('item_status', ['cancelled', 'completed']) // Completed/cancelled items don't occupy slots
+            ->where('start_time', '<', $this->normalize($end))
+            ->where('end_time', '>', $this->normalize($start));
+
+        if ($ignoreBookingId) {
+            $query->where('booking_id', '!=', $ignoreBookingId);
+        }
+
+        if ($ignoreItemIds && count($ignoreItemIds) > 0) {
+            $query->whereNotIn('id', $ignoreItemIds);
+        }
+
+        $allocatedUnits = (int) $query->sum('quantity');
+
+        return max(0, $totalUnits - $allocatedUnits);
+    }
+
     /** Is a single piece of equipment free for the given slot? */
     public function isAvailable(
         Equipment $equipment,
@@ -24,25 +61,32 @@ class AvailabilityService
         ?int $ignoreBookingId = null,
     ): bool {
         if ($equipment->status === EquipmentStatus::Maintenance) {
-            // Maintenance status only blocks same-day bookings.
-            // Future bookings assume the repair will be completed by then.
             if (Carbon::parse($date)->isToday()) {
                 return false;
             }
         }
 
-        return ! $this->overlappingBookingsQuery($equipment->id, $date, $start, $end, $ignoreBookingId)->exists();
+        return $this->getAvailableCapacity($equipment->type->value, $date, $start, $end, $ignoreBookingId) >= 1;
     }
 
     /** Every bookable unit free for the slot, optionally filtered by type. */
     public function availableEquipment(string $date, string $start, string $end, ?string $type = null): Collection
     {
-        return Equipment::query()
-            ->where('status', '!=', EquipmentStatus::Maintenance->value)
-            ->when($type, fn ($q) => $q->where('type', $type))
-            ->get()
-            ->filter(fn (Equipment $e) => $this->isAvailable($e, $date, $start, $end))
-            ->values();
+        $query = Equipment::query();
+        
+        if (Carbon::parse($date)->isToday()) {
+            $query->where('status', '!=', EquipmentStatus::Maintenance->value);
+        }
+        
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        $allUnits = $query->get();
+
+        return $allUnits->filter(function (Equipment $e) use ($date, $start, $end) {
+            return $this->getAvailableCapacity($e->type->value, $date, $start, $end) >= 1;
+        })->values();
     }
 
     /**
@@ -89,19 +133,6 @@ class AvailabilityService
         }
 
         return $slots;
-    }
-
-    private function overlappingBookingsQuery(int $equipmentId, string $date, string $start, string $end, ?int $ignoreBookingId)
-    {
-        return Booking::query()
-            ->where('equipment_id', $equipmentId)
-            ->whereDate('booking_date', $date)
-            ->where('waitlisted', false)
-            ->whereIn('status', config('booking.blocking_statuses'))
-            ->when($ignoreBookingId, fn ($q) => $q->where('id', '!=', $ignoreBookingId))
-            // Standard half-open overlap test: start < existing.end AND end > existing.start.
-            ->where('start_time', '<', $this->normalize($end))
-            ->where('end_time', '>', $this->normalize($start));
     }
 
     private function minutesBetween(string $start, string $end): int

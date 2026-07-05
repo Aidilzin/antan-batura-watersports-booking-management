@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useMemo, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api, apiErrorMessage } from '../../lib/api'
 import type { Booking } from '../../types'
@@ -85,10 +85,54 @@ export function FrontDeskPage() {
     }
   }
 
-  // Filter Today's Bookings into Operational Stages
-  const arrivals = todayBookings.filter(b => b.status === 'pending' || b.status === 'confirmed')
-  const checkedIn = todayBookings.filter(b => b.status === 'checked_in')
-  const inUse = todayBookings.filter(b => b.status === 'in_use')
+  // Flatten bookings → individual BookingItem rows, sorted by start_time
+  type LiveRow = {
+    bookingRef: string
+    bookingId: number
+    bookingStatus: string
+    customerName: string
+    itemId: number
+    equipmentType: string
+    quantity: number
+    startTime: string
+    endTime: string
+    itemStatus: string
+    itemOf: string // e.g. "item 1 of 2"
+  }
+
+  const ITEM_TYPE_LABELS: Record<string, string> = {
+    cruise_boat: 'Cruise Boat', kayak_single: 'Single Kayak', kayak_double: 'Double Kayak',
+    canoe: 'Canoe', paddle_boat: 'Paddle Boat', paddle_boat_family: 'Family Paddle Boat',
+  }
+
+  const allLiveRows = useMemo<LiveRow[]>(() => {
+    const rows: LiveRow[] = []
+    todayBookings.forEach((b) => {
+      const items = b.items ?? []
+      items.forEach((item, idx) => {
+        rows.push({
+          bookingRef: b.booking_reference,
+          bookingId: b.id,
+          bookingStatus: b.status,
+          customerName: b.customer?.name ?? 'Unknown',
+          itemId: item.id,
+          equipmentType: ITEM_TYPE_LABELS[item.equipment_type] ?? item.equipment_type,
+          quantity: item.quantity,
+          startTime: item.start_time,
+          endTime: item.end_time,
+          itemStatus: item.item_status,
+          itemOf: `item ${idx + 1} of ${items.length}`,
+        })
+      })
+    })
+    // Sort by start_time chronologically
+    rows.sort((a, b) => a.startTime.localeCompare(b.startTime))
+    return rows
+  }, [todayBookings])
+
+  const arrivals = allLiveRows.filter(r => r.itemStatus === 'pending' || r.itemStatus === 'confirmed')
+  const checkedIn = allLiveRows.filter(r => r.itemStatus === 'checked_in')
+  const inUse = allLiveRows.filter(r => r.itemStatus === 'in_use')
 
   return (
     <div className="space-y-6">
@@ -128,13 +172,20 @@ export function FrontDeskPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="grid h-11 w-11 place-items-center rounded-xl bg-lagoon-500 text-white">
-                        {booking.equipment && <EquipmentIcon type={booking.equipment.type} className="h-5 w-5" />}
+                        {booking.items && booking.items[0] && (
+                          <EquipmentIcon type={booking.items[0].equipment_type} className="h-5 w-5" />
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold text-ink-950 text-base">{booking.customer?.name}</p>
                         <p className="text-xs text-ink-600">
-                          {booking.equipment?.name} · {booking.booking_date} ·{' '}
-                          <span className="font-semibold text-ink-900">{booking.start_time}–{booking.end_time}</span>
+                          {booking.items && booking.items.length > 0
+                            ? booking.items.map((it, i) => (
+                                <span key={i} className="mr-2">
+                                  {ITEM_TYPE_LABELS[it.equipment_type] ?? it.equipment_type}×{it.quantity} {it.start_time}–{it.end_time}
+                                </span>
+                              ))
+                            : booking.booking_reference}
                         </p>
                       </div>
                     </div>
@@ -208,31 +259,31 @@ export function FrontDeskPage() {
                   {arrivals.length}
                 </span>
               </div>
-              {arrivals.length === 0 ? (
+                {arrivals.length === 0 ? (
                 <p className="text-xxs text-ink-400 py-2">No pending arrivals left for today.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {arrivals.map((b) => (
+                  {arrivals.map((r) => (
                     <button
-                      key={b.id}
-                      onClick={() => handleSelectTodayBooking(b.booking_reference)}
+                      key={`${r.bookingRef}-${r.itemId}`}
+                      onClick={() => handleSelectTodayBooking(r.bookingRef)}
                       className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${
-                        booking?.id === b.id
+                        booking?.booking_reference === r.bookingRef
                           ? 'border-lagoon-500 bg-lagoon-50/50'
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
                       <div className="space-y-0.5">
-                        <p className="font-semibold text-ink-950">{b.customer?.name}</p>
+                        <p className="font-semibold text-ink-950">{r.customerName}</p>
                         <p className="text-[10px] text-lagoon-700 font-bold">
-                          ⏰ {b.start_time}–{b.end_time}
+                          ⏰ {r.startTime}–{r.endTime}
                         </p>
                         <p className="text-[9px] text-ink-500 font-semibold">
-                          {b.equipment?.name || 'Watersports unit'}
+                          {r.equipmentType} ×{r.quantity} · <span className="text-ink-400">{r.itemOf}</span>
                         </p>
                       </div>
                       <span className="font-mono text-[9px] text-lagoon-600 bg-white border border-lagoon-200 rounded px-1.5">
-                        {b.booking_reference}
+                        {r.bookingRef}
                       </span>
                     </button>
                   ))}
@@ -252,23 +303,23 @@ export function FrontDeskPage() {
                 <p className="text-xxs text-ink-400 py-2">No customers checked-in & waiting at dock.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {checkedIn.map((b) => (
+                  {checkedIn.map((r) => (
                     <button
-                      key={b.id}
-                      onClick={() => handleSelectTodayBooking(b.booking_reference)}
+                      key={`${r.bookingRef}-${r.itemId}`}
+                      onClick={() => handleSelectTodayBooking(r.bookingRef)}
                       className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${
-                        booking?.id === b.id
+                        booking?.booking_reference === r.bookingRef
                           ? 'border-lagoon-500 bg-lagoon-50/50'
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
                       <div className="space-y-0.5">
-                        <p className="font-semibold text-ink-950">{b.customer?.name}</p>
+                        <p className="font-semibold text-ink-950">{r.customerName}</p>
                         <p className="text-[10px] text-lagoon-700 font-bold">
-                          ⏰ {b.start_time}–{b.end_time}
+                          ⏰ {r.startTime}–{r.endTime}
                         </p>
                         <p className="text-[9px] text-ink-500 font-semibold">
-                          {b.equipment?.name || 'Watersports unit'}
+                          {r.equipmentType} ×{r.quantity}
                         </p>
                       </div>
                       <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5">
@@ -292,23 +343,23 @@ export function FrontDeskPage() {
                 <p className="text-xxs text-ink-400 py-2">No active boats currently on the water.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {inUse.map((b) => (
+                  {inUse.map((r) => (
                     <button
-                      key={b.id}
-                      onClick={() => handleSelectTodayBooking(b.booking_reference)}
+                      key={`${r.bookingRef}-${r.itemId}`}
+                      onClick={() => handleSelectTodayBooking(r.bookingRef)}
                       className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${
-                        booking?.id === b.id
+                        booking?.booking_reference === r.bookingRef
                           ? 'border-lagoon-500 bg-lagoon-50/50'
                           : 'border-ink-150 bg-surface-sunken hover:bg-lagoon-50/20'
                       }`}
                     >
                       <div className="space-y-0.5">
-                        <p className="font-semibold text-ink-950">{b.customer?.name}</p>
+                        <p className="font-semibold text-ink-950">{r.customerName}</p>
                         <p className="text-[10px] text-lagoon-700 font-bold">
-                          ⏰ {b.start_time}–{b.end_time}
+                          ⏰ {r.startTime}–{r.endTime}
                         </p>
                         <p className="text-[9px] text-ink-500 font-semibold">
-                          Boat: <span className="font-semibold text-ink-800">{b.equipment?.name}</span>
+                          {r.equipmentType} ×{r.quantity}
                         </p>
                       </div>
                       <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 animate-pulse">

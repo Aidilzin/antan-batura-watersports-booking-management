@@ -25,10 +25,25 @@ class AvailabilityController extends Controller
         $date = $request->string('booking_date');
         $start = $request->string('start_time');
         $end = $request->string('end_time');
+        $quantity = $request->integer('quantity', 1);
+        $cart = $request->input('cart', []);
 
         if ($request->filled('equipment_id')) {
             $equipment = Equipment::findOrFail($request->integer('equipment_id'));
-            $available = $this->availability->isAvailable($equipment, $date, $start, $end);
+            $availableCapacity = $this->availability->getAvailableCapacity($equipment->type->value, $date, $start, $end);
+            
+            foreach ($cart as $cartItem) {
+                if (($cartItem['type'] ?? '') === $equipment->type->value) {
+                    $cartStart = $cartItem['start_time'] ?? '';
+                    $cartEnd = $cartItem['end_time'] ?? '';
+                    $cartQty = (int) ($cartItem['quantity'] ?? 1);
+                    if (Carbon::parse($cartStart)->lt(Carbon::parse($end)) && Carbon::parse($cartEnd)->gt(Carbon::parse($start))) {
+                        $availableCapacity -= $cartQty;
+                    }
+                }
+            }
+
+            $available = $availableCapacity >= $quantity && $equipment->status !== EquipmentStatus::Maintenance;
 
             $payload = ['available' => $available];
 
@@ -43,27 +58,43 @@ class AvailabilityController extends Controller
             return response()->json($payload);
         }
 
-        // No specific unit requested — just list what's free for the slot.
-        $available = $this->availability->availableEquipment($date, $start, $end, $request->input('type'));
-
-        $payload = [
-            'available' => $available->isNotEmpty(),
-            'equipment' => EquipmentResource::collection($available),
-        ];
-
-        if ($available->isEmpty() && $request->filled('type')) {
-            // Find the first equipment of this type to scan for alternative slots
-            $representative = Equipment::where('type', $request->string('type'))->first();
-            if ($representative) {
-                $alternatives = $this->availability->alternativesFor($representative, $date, $start, $end);
-                $payload['alternatives'] = [
-                    'same_type_equipment' => [],
-                    'free_slots' => $alternatives['free_slots'],
-                ];
+        $type = $request->string('type');
+        if ($type) {
+            $availableCapacity = $this->availability->getAvailableCapacity($type, $date, $start, $end);
+            
+            foreach ($cart as $cartItem) {
+                if (($cartItem['type'] ?? '') === $type) {
+                    $cartStart = $cartItem['start_time'] ?? '';
+                    $cartEnd = $cartItem['end_time'] ?? '';
+                    $cartQty = (int) ($cartItem['quantity'] ?? 1);
+                    if (Carbon::parse($cartStart)->lt(Carbon::parse($end)) && Carbon::parse($cartEnd)->gt(Carbon::parse($start))) {
+                        $availableCapacity -= $cartQty;
+                    }
+                }
             }
+
+            $available = $availableCapacity >= $quantity;
+
+            $payload = [
+                'available' => $available,
+                'available_capacity' => $availableCapacity,
+            ];
+
+            if (! $available) {
+                $representative = Equipment::where('type', $type)->first();
+                if ($representative) {
+                    $alternatives = $this->availability->alternativesFor($representative, $date, $start, $end);
+                    $payload['alternatives'] = [
+                        'same_type_equipment' => [],
+                        'free_slots' => $alternatives['free_slots'],
+                    ];
+                }
+            }
+
+            return response()->json($payload);
         }
 
-        return response()->json($payload);
+        return response()->json(['available' => false]);
     }
 
     /** Return all hourly slots with their visual occupancy status. */
@@ -91,7 +122,7 @@ class AvailabilityController extends Controller
             $start = $cursor->format('H:i');
             $end = $cursor->copy()->addHour()->format('H:i');
 
-            $availableCount = $this->availability->availableEquipment($date, $start, $end, $type)->count();
+            $availableCount = $this->availability->getAvailableCapacity($type, $date, $start, $end);
 
             $slots[] = [
                 'start_time' => $start,

@@ -19,6 +19,8 @@ class CheckAvailabilityRequest extends FormRequest
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'type' => ['nullable', 'string'],
             'equipment_id' => ['nullable', 'integer', 'exists:equipment,id'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'cart' => ['nullable', 'array'],
         ];
     }
 }

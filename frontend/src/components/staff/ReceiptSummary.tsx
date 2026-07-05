@@ -7,18 +7,47 @@ export function ReceiptSummary({ booking }: { booking: Booking }) {
   const confirmedPayments = booking.payments?.filter((p) => p.status === 'confirmed') ?? []
   const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0)
 
-  // Calculate base cost
-  const [sh, sm] = booking.start_time.split(':').map(Number)
-  const [eh, em] = booking.end_time.split(':').map(Number)
-  const hours = (eh * 60 + em - (sh * 60 + sm)) / 60
-  const rate = booking.equipment ? parseFloat(String(booking.equipment.hourly_rate)) : 0
-  const baseCost = isNaN(rate) ? 0 : rate * hours
+  // Calculate base cost of items, or fallback to single equipment calculation for old bookings
+  const baseCost = booking.items && booking.items.length > 0
+    ? booking.items.reduce((sum, item) => {
+        if (item.item_status === 'cancelled') return sum
+        if (item.equipment_type === 'cruise_boat') {
+          const adults = item.adult_count ?? 0
+          const children = item.child_count ?? 0
+          return sum + (adults * 10.00) + (children * 6.00)
+        }
+        const [sh, sm] = item.start_time.split(':').map(Number)
+        const [eh, em] = item.end_time.split(':').map(Number)
+        const hours = (eh * 60 + em - (sh * 60 + sm)) / 60
+        const rate = parseFloat(String(item.rate_snapshot))
+        return sum + (isNaN(rate) ? 0 : rate * item.quantity * hours)
+      }, 0)
+    : (() => {
+        if (!booking.equipment) return 0
+        const [sh, sm] = booking.start_time.split(':').map(Number)
+        const [eh, em] = booking.end_time.split(':').map(Number)
+        const hours = (eh * 60 + em - (sh * 60 + sm)) / 60
+        const rate = parseFloat(String(booking.equipment.hourly_rate))
+        return isNaN(rate) ? 0 : rate * hours
+      })()
 
-  // Extra charges
-  const overtimeCost = booking.usage_log ? parseFloat(String(booking.usage_log.extra_charge_amount)) : 0
-  const damageCost = booking.damage_reports && booking.damage_reports.length > 0
-    ? parseFloat(String(booking.damage_reports[0].deposit_charged))
-    : 0
+  // Extra charges across all items
+  const overtimeCost = booking.items && booking.items.length > 0
+    ? booking.items.reduce((sum, item) => {
+        return sum + (item.usage_log ? parseFloat(String(item.usage_log.extra_charge_amount)) : 0)
+      }, 0)
+    : (booking.usage_log ? parseFloat(String(booking.usage_log.extra_charge_amount)) : 0)
+
+  const damageCost = booking.items && booking.items.length > 0
+    ? booking.items.reduce((sum, item) => {
+        const itemDamages = item.damage_reports && item.damage_reports.length > 0
+          ? item.damage_reports.reduce((dSum, d) => dSum + parseFloat(String(d.deposit_charged)), 0)
+          : 0
+        return sum + itemDamages
+      }, 0)
+    : (booking.damage_reports && booking.damage_reports.length > 0
+        ? parseFloat(String(booking.damage_reports[0].deposit_charged))
+        : 0)
 
   const totalCost = baseCost + overtimeCost + damageCost
   const outstandingBalance = Math.max(0, totalCost - totalPaid)
@@ -35,35 +64,70 @@ export function ReceiptSummary({ booking }: { booking: Booking }) {
             <span className="text-ink-500">Booking Reference</span>
             <span className="font-mono font-semibold text-ink-950">{booking.booking_reference}</span>
           </div>
-          <div className="flex justify-between py-0.5">
-            <span className="text-ink-500">Equipment</span>
-            <span className="font-medium text-ink-950">{booking.equipment?.name}</span>
-          </div>
-          <div className="flex justify-between py-0.5">
-            <span className="text-ink-500">Scheduled Slot</span>
-            <span className="font-medium text-ink-950">{booking.booking_date}, {booking.start_time}–{booking.end_time}</span>
+          
+          <div className="border-t border-dashed border-ink-200/60 my-2 pt-2 space-y-2">
+            <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider">Line Items</span>
+            {booking.items && booking.items.length > 0 ? (
+              booking.items.map((item) => {
+                const isCruise = item.equipment_type === 'cruise_boat'
+                const [sh, sm] = item.start_time.split(':').map(Number)
+                const [eh, em] = item.end_time.split(':').map(Number)
+                const hours = (eh * 60 + em - (sh * 60 + sm)) / 60
+                const rate = parseFloat(String(item.rate_snapshot))
+                const lineTotal = isCruise
+                  ? ((item.adult_count ?? 0) * 10.00) + ((item.child_count ?? 0) * 6.00)
+                  : (isNaN(rate) ? 0 : rate * item.quantity * hours)
+                return (
+                  <div key={item.id} className="flex justify-between py-0.5 border-b border-ink-100/50 pb-1.5">
+                    <div>
+                      <span className="font-medium text-ink-950 capitalize">
+                        {item.equipment_type.replace('_', ' ')}
+                        {isCruise 
+                          ? ` · Adults: ${item.adult_count ?? 0}, Kids: ${item.child_count ?? 0}`
+                          : ` · Qty: ${item.quantity}`}
+                      </span>
+                      <span className="block text-[10px] text-ink-500">
+                        {item.booking_date} · {item.start_time}–{item.end_time} 
+                        {isCruise
+                          ? ' (Boarding fee: RM 10.00 Adult, RM 6.00 Child)'
+                          : ` (${hours} hr @ RM ${rate.toFixed(2)}/hr)`}
+                        {item.item_status === 'cancelled' && <span className="ml-2 text-red-650 font-bold">(Cancelled)</span>}
+                      </span>
+                    </div>
+                    <span className="font-semibold text-ink-950 self-end">
+                      {item.item_status === 'cancelled' ? 'RM 0.00' : `RM ${lineTotal.toFixed(2)}`}
+                    </span>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="flex justify-between py-0.5">
+                <span className="text-ink-500">{booking.equipment?.name} ({booking.start_time}–{booking.end_time})</span>
+                <span className="font-medium text-ink-950">RM {baseCost.toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
           <div className="border-t border-dashed border-ink-200/60 my-2 pt-2 space-y-1.5">
             <div className="flex justify-between py-0.5">
-              <span className="text-ink-500">Base Rental ({hours} hr @ RM {rate.toFixed(2)}/hr)</span>
+              <span className="text-ink-500">Subtotal</span>
               <span className="font-medium text-ink-950">RM {baseCost.toFixed(2)}</span>
             </div>
             {overtimeCost > 0 && (
               <div className="flex justify-between py-0.5">
-                <span className="text-amber-700">Overtime Fee ({booking.usage_log?.exceeded_minutes} min)</span>
-                <span className="font-semibold text-amber-700">RM {overtimeCost.toFixed(2)}</span>
+                <span className="text-amber-700 font-semibold">Overtime Fee</span>
+                <span className="font-bold text-amber-700">RM {overtimeCost.toFixed(2)}</span>
               </div>
             )}
             {damageCost > 0 && (
               <div className="flex justify-between py-0.5">
-                <span className="text-red-700">Damage Deposit</span>
-                <span className="font-semibold text-red-700">RM {damageCost.toFixed(2)}</span>
+                <span className="text-red-700 font-semibold">Damage Charges</span>
+                <span className="font-bold text-red-700">RM {damageCost.toFixed(2)}</span>
               </div>
             )}
           </div>
 
-          <div className="border-t border-ink-200/80 pt-2 flex justify-between font-semibold text-sm">
+          <div className="border-t border-ink-200/80 pt-2 flex justify-between font-bold text-sm">
             <span className="text-ink-900">Total Invoice Cost</span>
             <span className="text-ink-950">RM {totalCost.toFixed(2)}</span>
           </div>
@@ -96,7 +160,7 @@ export function ReceiptSummary({ booking }: { booking: Booking }) {
           ) : (
             <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-2 font-semibold">
               <span className="text-emerald-800">Outstanding Balance</span>
-              <span className="text-emerald-800">Fully Settled</span>
+              <span className="text-emerald-800 font-bold">Fully Settled</span>
             </div>
           )}
         </div>
